@@ -18,11 +18,24 @@ This binary supports:
 - We are running this from the "C:\\Users...liam-tasklist\x64\Release" folder
 - To run from any directory, you would need to add liam-tasklist.exe to your system path
 
-### liam-tasklist.exe (/V) verbose output
+### liam-tasklist.exe /V (verbose output)
 
-### liam-tasklist.exe (/SVC) service output
+### liam-tasklist.exe /SVC (service output)
 
-### liam-tasklist.exe (/?) service output
+### liam-tasklist.exe /? (service output)
+
+
+## liam-taskkill.exe
+
+### liam-taskkill.exe (no flags)
+
+### liam-taskkill.exe /F [/PID processid | /IM imagename]
+
+### liam-taskkill.exe /T [/PID processid | /IM imagename]
+
+### liam-taskkill.exe /PID <processid>
+
+### liam-taskkill.exe /IM <imagename>
 
 
 ## Building Binaries
