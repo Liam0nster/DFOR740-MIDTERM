@@ -15,8 +15,9 @@ This binary supports:
 ### liam-tasklist.exe (no flags)
 <img width="711" height="596" alt="image" src="https://github.com/user-attachments/assets/bfeb1a0b-ba97-45e6-8f3c-54c64f32a8c3" /></br>
 - Above, we can see the beginning of output from running liam-tasklist.exe, piped into more, to catch the headers.
+- `liam-tasklist.exe | more`
 - We are running this from the "C:\\Users...liam-tasklist\x64\Release" folder
-- To run from any directory, you would need to add liam-tasklist.exe to your system path
+- To run from any directory, you would need to add liam-tasklist.exe to your system path, or move the .exe into the folder you want to run it from.
 
 ### liam-tasklist.exe /V (verbose output)
 
