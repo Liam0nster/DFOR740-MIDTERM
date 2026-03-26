@@ -5,11 +5,24 @@ Liam Salusky
 
 This project consists of two parts: Tasklist and Taskkill. C++ code and built binaries can be found in their corresponding folders "[liam-tasklist]([url](https://github.com/Liam0nster/DFOR740-MIDTERM/tree/main/liam-tasklist))" and "[liam-taskkill]([url](https://github.com/Liam0nster/DFOR740-MIDTERM/tree/main/liam-taskkill))".
 
-## liam-tasklist
+## liam-tasklist.exe
+This binary supports:
+- Running with no flags for a standard "tasklist.exe" output
+- /V flag for verbose output
+- /SVC flag for services output
+- /? flag for help
+
+### liam-tasklist.exe (no flags)
 <img width="711" height="596" alt="image" src="https://github.com/user-attachments/assets/bfeb1a0b-ba97-45e6-8f3c-54c64f32a8c3" /></br>
-- Above we can see the beginning of output from running liam-tasklist.exe
-- We are running this from the C:\\Users...liam-tasklist\x64\Release folder
+- Above, we can see the beginning of output from running liam-tasklist.exe, piped into more, to catch the headers.
+- We are running this from the "C:\\Users...liam-tasklist\x64\Release" folder
 - To run from any directory, you would need to add liam-tasklist.exe to your system path
+
+### liam-tasklist.exe (/V) verbose output
+
+### liam-tasklist.exe (/SVC) service output
+
+### liam-tasklist.exe (/?) service output
 
 
 ## Building Binaries
@@ -25,6 +38,6 @@ To compile yourself:
 <img width="450" height="151" alt="image" src="https://github.com/user-attachments/assets/a4140890-4816-4d6a-aca4-badf833303aa" />
 
  - Select "Release"
- - Shortcut: <Ctrl + b> will build the binary.
+ - Shortcut: <Ctrl + b> will build the binary (Windows 11).
  - <img width="762" height="154" alt="image" src="https://github.com/user-attachments/assets/28e05e11-cc5a-491e-8159-7c4b81702260" />
  - You will see output of where the binary was saved in the console at the bottom of Visual Studio.
