@@ -1,21 +1,22 @@
 /* liam-tasklist.cpp
-Creating some simple functions of tasklist.exe in c++ for DFOR740 Midterm, Spring 2026
-This supports: a default tasklist view (no arguments), /V for verbose, and /SVC for services
+Creating some simple functions of tasklist.exe in c++ for DFOR740 Midterm
+This supports: a default view (no arguments), /V for verbose, and /SVC for services
 
 Liam Salusky
 With assistance of Claude, as I am nowhere near well versed enough in c++ to fully recreate tasklist.exe 
+
 
 Declaration of AI Usage. 
 AI assistance, Claude (Anthropic) was used during the development of this assignment.
 
 How AI Was Used
-- Understanding Windows APIs: AI helped me build a better understanding of how certain Windows API functions work, including 'CreateToolhelp32Snapshot', 'Process32First'/'Process32Next', 'GetProcessMemoryInfo', 'GetProcessTimes', and 'EnumServicesStatusExA'.
+- Understanding Windows APIs: AI helped me build a better understanding of how certain Windows API functions work, including 'CreateToolhelp32Snapshot', 'Process32First'/'Process32Next', 'GetProcessMemoryInfo', 'GetProcessTimes', 'OpenSCManagerA', and 'EnumServicesStatusExA'.
 - Code structure guidance: AI guided me in organizing the program into clear functions('printDefault', 'printVerbose', 'printServices') and helped with formatting output to match 'tasklist.exe'.
 - Debugging: AI helped me resolve a Unicode / ANSI compatibility issue where Visual Studio's default Unicode mode caused 'PROCESSENTRY32::szExeFile' to be incompatible with 'std::string'. 
     - During some troubleshooting, the AI started to lead me down a halucination into 'PROCESSENTRY32A' (ansi) to resolve a variable conversion issue, which does not actually exist. 
 
-The AI generated code was reviewed, tested, and understood before its inclusion.
 
+The AI generated code was reviewed, tested, and understood before its inclusion.
 
 Other resources used:
 - Win32 API (https[:]//learn.microsoft.com/en-us/windows/win32/api/) - Lots of reading to understand what is really happening during each step of our program's execution.
@@ -26,7 +27,7 @@ Other resources used:
 
 
 
-// Without setting default to ANSI, by undefining UNICODE, szExeFile will not work due to some wide string conversion problems
+// Without setting default to ANSI, szExeFile will not work due to some wide string conversion problems
 #undef UNICODE
 #undef _UNICODE
 
@@ -88,7 +89,7 @@ int main(int argc, char* argv[]) {
             std::cout << "Type \"liam-tasklist /? \" for usage.";
             return 1;
         }
-    }
+    } // End taking command line args
 
     // Routing based on the flags
     if (showVerbose && showServices) {
@@ -97,6 +98,7 @@ int main(int argc, char* argv[]) {
     }
 
     // If the user intends to get a verbose listing by passing /V
+    // Heavy lifting here orchestrated by Claude, this was the most challenging part of tasklist for me
     else if (showVerbose) {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot == INVALID_HANDLE_VALUE) {
@@ -232,7 +234,7 @@ int main(int argc, char* argv[]) {
                         unsigned long long mins = (totalSeconds % 3600) / 60;
                         unsigned long long secs = totalSeconds % 60;
 
-                        // Build a text string like how tasklist.exe shows (00:00:00)
+                        // Build a text string to show CPU time, like how tasklist.exe shows (00:00:00)
                         cpuTime = std::to_string(hrs) + ":"
                             + (mins < 10 ? "0" : "") + std::to_string(mins) + ":"
                             + (secs < 10 ? "0" : "") + std::to_string(secs);
@@ -243,19 +245,17 @@ int main(int argc, char* argv[]) {
                 }
 
                 // Getting the Window title 
-                // FindWindow won't help us here since we need to search by PID.
                 // Instead we look for any visible window owned by this process.
-                // We use a simple struct to pass data into the callback.
-                struct FindData {
+                struct FindData { // Declare a FindData struct, to get the Window Title for a verbose output
                     DWORD pid;
                     std::string title;
                 };
                 FindData findData;
-                findData.pid = entry.th32ProcessID;
+                findData.pid = entry.th32ProcessID; 
                 findData.title = "N/A";
 
-                // EnumWindows calls our lambda once for every window on screen.
-                // We check if each window belongs to our PID.
+                // EnumWindows calls our lambda once for every window on screen
+                // We check if each window belongs to our PID until we get one
                 EnumWindows([](HWND hwnd, LPARAM param) -> BOOL {
                     FindData* data = reinterpret_cast<FindData*>(param);
                     DWORD windowPid = 0;
@@ -266,7 +266,7 @@ int main(int argc, char* argv[]) {
                         GetWindowTextA(hwnd, title, 256);
                         if (strlen(title) > 0) {
                             data->title = title;
-                            return FALSE; // Stop looking, we found one
+                            return FALSE; // Stop looking, we found a Window Title
                         }
                     }
                     return TRUE; // Keep looking
@@ -291,37 +291,36 @@ int main(int argc, char* argv[]) {
                     << std::right << std::setw(12) << cpuTime << " "
                     << std::left << windowTitle << std::endl;
 
-            } while (Process32Next(snapshot, &entry));
+            } while (Process32Next(snapshot, &entry)); // Continue until we run out of processes
         }
 
-        CloseHandle(snapshot);
+        CloseHandle(snapshot); //clean up
 
-    }
-    // If the user intends to get a list of services by passing /SVC
+    } // END verbose output handling
+
+
+    // SERVICES: If the user intends to get a list of services by passing /SVC
     else if (showServices) {
-        std::cout << "DEBUG REMOVE ME #################### Routing successful: Now executing Services Process List...\n";
         
-        // Open a connection to the Service Control Manager.
-        // This keeps track of all services
-        // This turns out to be the only reasonable way I could accomplish finding services tied to processes
-        SC_HANDLE scManager = OpenSCManagerA(NULL, 
+        // Open a connection to the Service Control Manager, which keeps track of all services
+        SC_HANDLE scManager = OpenSCManagerA(NULL, // Open a handle to the service control manager
             NULL, 
             SC_MANAGER_ENUMERATE_SERVICE);
 
-        if (scManager == NULL) {
+        if (scManager == NULL) { // If we cant open a handle to Service Control Manager, exit
             std::cout << "Error: Could not open Service Control Manager." << std::endl;
             return 1; // exit with error
         }
 
         // Windows makes us call EnumServicesStatusEx twice:
-        //   1st call with no buffer -> tells us how big the buffer needs to be
-        //   2nd call with the right sized buffer -> actually gives us the data
+        //   1st call with no buffer - tells us how big the buffer needs to be
+        //   2nd call with the right sized buffer - actually gives us the data
         DWORD bytesNeeded = 0;
         DWORD serviceCount = 0;
         DWORD resumeHandle = 0;
 
         // 1st call: just asking "how much space do I need?"
-        EnumServicesStatusExA(scManager, 
+        EnumServicesStatusExA(scManager, // Ask Service Control Manager
             SC_ENUM_PROCESS_INFO,
             SERVICE_WIN32, 
             SERVICE_ACTIVE,
@@ -332,11 +331,11 @@ int main(int argc, char* argv[]) {
             &resumeHandle, 
             NULL);
 
-        // Allocate a buffer big enough to hold all the service info
+        // Allocate a buffer big enough to hold all the service info from our 1st call
         BYTE* buffer = new BYTE[bytesNeeded];
 
         // 2nd call: actually get the service data
-        if (!EnumServicesStatusExA(scManager, 
+        if (!EnumServicesStatusExA(scManager, // Get data back from Service Control Manager, passing in the buffer we had to get in 1st call to account for memory needed
             SC_ENUM_PROCESS_INFO,
             SERVICE_WIN32, 
             SERVICE_ACTIVE,
@@ -347,7 +346,7 @@ int main(int argc, char* argv[]) {
             &resumeHandle, 
             NULL)) {
             
-            // If we get some sort of error in getting data on services, send an error
+            // If we get some sort of error in getting data on services, send an error, and exit
             std::cerr << "Error: Could not list services." << std::endl;
             // Clear buffer and clean up before exiting
             delete[] buffer;
@@ -358,7 +357,7 @@ int main(int argc, char* argv[]) {
         // The buffer holds a pointer to where all the status information on processes can be found at
         ENUM_SERVICE_STATUS_PROCESSA* services = (ENUM_SERVICE_STATUS_PROCESSA*)buffer;
 
-        // We need a process snapshot to look up process names by PID
+        // We need to take a process snapshot to look up process names by PID
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
         // Print header
@@ -374,17 +373,17 @@ int main(int argc, char* argv[]) {
             DWORD pid = services[i].ServiceStatusProcess.dwProcessId;
             if (pid == 0) continue; // Skip PID 0, that's the idle process
 
-            // Look up the process name by walking through the snapshot of the process list
             std::string processName = "Unknown";
             PROCESSENTRY32 pe;
             pe.dwSize = sizeof(PROCESSENTRY32);
+            // Look up the process name by walking through the snapshot of the process list until we reach it 
             if (Process32First(snapshot, &pe)) {
                 do {
-                    if (pe.th32ProcessID == pid) {
-                        processName = pe.szExeFile;
-                        break;
-                    }
-                } while (Process32Next(snapshot, &pe));
+                    if (pe.th32ProcessID == pid) { // Once we have a match on the PID,  
+                        processName = pe.szExeFile; // set the processName to the name of the process identifier by the PID,
+                        break; // then exit the current do loop, and proceed to print our output
+                    } 
+                } while (Process32Next(snapshot, &pe)); // Keep walking down the snapshot until we hit the end of the snapshot
             }
 
             // Trim process name to 25 chars max
@@ -392,27 +391,27 @@ int main(int argc, char* argv[]) {
                 processName = processName.substr(0, 25);
             }
 
-            // Print one row: process name, PID, service name
+            // Print the row: process name, PID, service name
             std::cout << std::left << std::setw(26) << processName
                 << std::right << std::setw(8) << pid
                 << "  "
                 << std::left << services[i].lpServiceName << std::endl;
-        }
+        } // Now repeat until we are out of services to iterate through.
 
         // Clean up
         delete[] buffer;
         CloseHandle(snapshot);
         CloseServiceHandle(scManager);
         return 0;
+    } // END of /SVC output
 
 
-
-    }
     // If no errors happen, and no flags are passed, we get to the default 'tasklist' execution
     else {
+        // Take a snapshot
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
 
-        // If we don't set the structure size, it breaks!
+        // If we don't set the structure size, it breaks! (thanks Win32 api documentation)
         PROCESSENTRY32 entry;
         entry.dwSize = sizeof(PROCESSENTRY32);
 
@@ -424,22 +423,23 @@ int main(int argc, char* argv[]) {
             << std::right << std::setw(10) << "Session#"
             << std::right << std::setw(14) << "Mem Usage" << std::endl;
 
-        // Print a line of ='s under headers
+        // Print a line of ='s under headers for formatting
         std::cout << "=========================  =======  =============== ========= =============\n";
 
         // Get first entry, then repeat!
         if (Process32First(snapshot, &entry)) {
             do {
                 DWORD sessionId = 0;
-                ProcessIdToSessionId(entry.th32ProcessID, 
+                ProcessIdToSessionId(entry.th32ProcessID, // Query ProcessIdToSessionId feeding the PID of the process, storing the result in sessionId
                     &sessionId);
-                // 0 is for a Service and anything else (1) is a user
+
+                // 0 is for a system service and anything else (1) is a user service
                 std::string sessionName = (sessionId == 0) ? "Services" : "Console";
 
                 // Declare the default value for an amount of memory used by a process
                 std::string memString = "N/A";
 
-                // Create handle named hProc to read memory information about a process, feed in the PID to query memory use
+                // Create handle for OpenProcess to read memory information about a process, feed in the PID to query memory use
                 HANDLE hProc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 
                     FALSE, 
                     entry.th32ProcessID);
@@ -475,6 +475,6 @@ int main(int argc, char* argv[]) {
         // Cleaning things up
         CloseHandle(snapshot);
         
-    }
+    } // END of no flag operation.
     return 0; // Exit, program executed successfully
 }
