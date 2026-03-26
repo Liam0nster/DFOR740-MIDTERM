@@ -33,9 +33,9 @@ This binary supports:
 
 ### liam-taskkill.exe /T [/PID processid | /IM imagename]
 
-### liam-taskkill.exe /PID <processid>
+### liam-taskkill.exe /PID processid
 
-### liam-taskkill.exe /IM <imagename>
+### liam-taskkill.exe /IM imagename
 
 
 ## Building Binaries
