@@ -15,23 +15,22 @@ How AI Was Used
 - Code structure guidance: AI guided me in organizing the program into a clearer to understand program
 - Debugging: AI helped me resolve a Unicode / ANSI compatibility issue where Visual Studio's default Unicode mode caused 'PROCESSENTRY32::szExeFile' to be incompatible with 'std::string'.
 - Building BFS search for the /T flag
-- Applying wildcard search function
+- Applying wildcard search function for /IM
 - Cleaning up variable names as mine were all over the place to begin with
 
 AI generated code was reviewed, tested, and understood before its acceptance.
 
 Other resources used:
-- Win32 API (https[:]//learn.microsoft.com/en-us/windows/win32/api/) - Lots of reading to understand what is really happening during each step of our program's execution.
+- Win32 API (https[:]//learn.microsoft.com/en-us/windows/win32/api/) - Lots of reading to understand what is really happening during each step of the program's execution.
 - GeeksforGeeks, Wildcard Pattern Matching (https[:]//www.geeksforgeeks.org/dsa/wildcard-pattern-matching/) 
 - GeeksforGeeks, Breadth First Search (https[:]//www.geeksforgeeks.org/dsa/breadth-first-search-or-bfs-for-a-graph/)
 */
-
 
 // Without setting default to ANSI, by undefining UNICODE, szExeFile will not work due to some wide string conversion problems
 #undef UNICODE
 #undef _UNICODE
 
-#include <windows.h>   // Core Win32 API (process management, window messaging, etc.)
+#include <windows.h>   // Core Win32 API
 #include <tlhelp32.h>  // Toolhelp32: snapshot and iteration of running processes
 #include <stdio.h>     // printf, fprintf for console output
 #include <stdlib.h>    // strtoul for converting PID strings to numbers
@@ -39,7 +38,7 @@ Other resources used:
 
 
 
-// Limits for our arrays
+// Setting limits to be used later
 #define MAX_PIDS    256
 #define MAX_IMAGES  32
 #define MAX_PROCS   4096
@@ -47,34 +46,35 @@ Other resources used:
 #define MAX_STR     512
 
 
+// Setting a struct and helper function for later
 
-// EnumWindowsProc â€” Callback for EnumWindows, used during graceful termination.
-// Windows calls this once for every window on the desktop and we check if it belongs to the process we're trying to close.
 typedef struct {
     DWORD pid;
     BOOL posted;
 } EnumCtx;
 
+// EnumWindowsProc — Callback for to enumerate through windows, used during graceful termination.
+// Windows calls this once for every window on the desktop and we check if it belongs to the process we're trying to close.
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     EnumCtx* ctx = (EnumCtx*)lParam;
 
-    // Check which process owns this window
     DWORD winPid = 0;
-    GetWindowThreadProcessId(hwnd, &winPid);
+    // Check which process owns this window, store in winPid
+    GetWindowThreadProcessId(hwnd, &winPid); 
 
-    if (winPid == ctx->pid) {
+    if (winPid == ctx->pid) { // If the window matches the PID we are looking for:
         // Send WM_CLOSE, the nice way to ask a program to close
         PostMessageA(hwnd, WM_CLOSE, 0, 0);
-        ctx->posted = TRUE;
+        ctx->posted = TRUE; // Lets us know this executed properly
     }
 
-    return TRUE; // Keep looking, process might have multiple windows
+    return TRUE; // Keep looking, process might have multiple windows, we want to close them all
 }
 
 
 
 int main(int argc, char* argv[]) {
-    // If no arguments at all, show help and exit
+    // If less than 2 arguments, show help and exit
     if (argc < 2) {
         printf("\nliam-taskkill [/F] [/T] [/PID pid | /IM imagename]\n\n");
         printf("Description:\n");
@@ -92,21 +92,21 @@ int main(int argc, char* argv[]) {
     BOOL useForce = FALSE;
     BOOL useTree = FALSE;
 
-    // Storage for PIDs specified with /PID flag
+    // Setting up storage for PIDs specified with /PID flag
     DWORD targetPids[MAX_PIDS];
     int targetPidCount = 0;
 
-    // Storage for image name patterns specified with /IM
+    // Setting up storage for image name patterns specified with /IM
     char imageNames[MAX_IMAGES][MAX_NAME];
     int imageCount = 0;
 
-    // Take command line arguments
+    // Process command line arguments
     for (int i = 1; i < argc; i++) {
-        // Copy the argument so we can uppercase it without modifying argv
+        // Copy the argument so we can uppercase it without modifying the original
         char arg[MAX_STR];
         lstrcpynA(arg, argv[i], MAX_STR);
 
-        // Convert argument to uppercase so "/f" and "/F" are treated the same
+        // Convert argument to uppercase so "/f" and "/F" are treated the same - case insensitivity 
         for (int c = 0; arg[c]; c++) {
             arg[c] = (char)(unsigned char)CharUpperA((LPSTR)(unsigned char)arg[c]);
         }
@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
         else if (lstrcmpA(arg, "/T") == 0) {
             useTree = TRUE;
         }
-        // Process ID â€” the next argument after /PID should be the actual number
+        // Process ID — the next argument after /PID should be the actual number
         else if (lstrcmpA(arg, "/PID") == 0) {
             // Make sure there's actually a value after /PID
             if (++i >= argc) {
@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
                 targetPids[targetPidCount++] = pid;
             }
         }
-        // Image name â€” the next argument after /IM should be the name or pattern
+        // Image name — the next argument after /IM should be the name or pattern
         else if (lstrcmpA(arg, "/IM") == 0) {
             // Make sure there's actually a value after /IM
             if (++i >= argc) {
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
             imageNames[imageCount][ci] = '\0';
             imageCount++;
         }
-        // Display the help menu
+        // Display the help menu if user passes /?
         else if (lstrcmpA(arg, "/?") == 0) {
             printf("\nliam-taskkill [/F] [/T] [/PID pid | /IM imagename]\n\n");
             printf("Description:\n");
@@ -174,7 +174,7 @@ int main(int argc, char* argv[]) {
             printf("      /?              Displays this help message.\n");
             return 0; // Exit without error
         }
-        // Catch unknown arguments
+        // Catch unknown arguments, show how to get the help menu
         else {
             fprintf(stderr, "ERROR: Invalid argument/option - '%s'\n", argv[i]);
             fprintf(stderr, "Type \"liam-taskkill /?\" for usage.\n");
@@ -238,16 +238,17 @@ int main(int argc, char* argv[]) {
             }
             nameLow[ci] = '\0';
 
-            // Wildcard matching, adapted from a common string matching algorithm as seen on GeeksforGeeks
+            // Declaring variables for wildcard matching
             const char* pattern = imageNames[im];
             const char* text = nameLow;
             const char* starP = NULL;
             const char* starT = NULL;
             BOOL isMatch = TRUE;
 
+            // Wildcard matching, adapted from a string matching algorithm from GeeksforGeeks, made usable with Claude
             while (*text) {
                 if (*pattern == '?' || *pattern == *text) {
-                    // Characters match, or ? matches anything â€” move forward
+                    // Characters match, or ? matches anything — move forward
                     pattern++;
                     text++;
                 }
@@ -277,21 +278,21 @@ int main(int argc, char* argv[]) {
                     targetPids[targetPidCount++] = procPids[p];
                 }
                 matched = TRUE;
-            }
+            } 
         }
         // If the wildcard search resulted in no matches, print the following error
         if (!matched) { 
             fprintf(stderr, "ERROR: The process \"%s\" not found.\n", imageNames[im]);
-        }
+        }// END Wildcare matching
     }
 
-    int failures = 0;
+    int failures = 0; // Variable to track failed attempts, to return at completion of program which will result in either an exit of code 0 or 1
 
-    // Verify that PIDs that we are about to kill actually exist in the snapshot
+    // Verify that PIDs that we are about to kill actually exist in the snapshot taken earlier
     {
         DWORD validPids[MAX_PIDS];
         int validCount = 0;
-
+        
         for (int i = 0; i < targetPidCount; i++) {
             BOOL found = FALSE;
             for (int p = 0; p < procCount; p++) {
@@ -308,7 +309,7 @@ int main(int argc, char* argv[]) {
                     (unsigned long)targetPids[i]);
                 failures++;
             }
-        }
+        } // END verifying PID existance
 
         // Replace targetPids with only the valid ones
         for (int i = 0; i < validCount; i++) {
@@ -323,21 +324,20 @@ int main(int argc, char* argv[]) {
     }
 
 
-    // If /T was specified, find all child processes
-    // We do a Breadth First Search (BFS) â€” start with our target PIDs,
-    // then find their children, then their children's children, etc.
+    // Declare counter for child processes
     DWORD childPids[MAX_PIDS];
     int childCount = 0;
-
-    if (useTree) {
+    
+    // If /T was specified, find all child processes
+    if (useTree) { 
         HANDLE treeSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-        if (treeSnap != INVALID_HANDLE_VALUE) {
+        if (treeSnap != INVALID_HANDLE_VALUE) { // So long as there is no problem getting the snapshot, we will continue
 
-            // Grab every process PID and parent PID
+            // Declaring variables to store child/parent PIDs
             static DWORD treePids[MAX_PROCS];
             static DWORD treeParents[MAX_PROCS];
             int treeCount = 0;
-
+            // Grab every process PID and parent PID
             PROCESSENTRY32 pe;
             pe.dwSize = sizeof(PROCESSENTRY32);
             if (Process32First(treeSnap, &pe)) {
@@ -351,13 +351,13 @@ int main(int argc, char* argv[]) {
             }
             CloseHandle(treeSnap);
 
-            // BFS queue â€” we start with target PIDs and keep finding children
+            // Initialize counting variables for child processes, to verify counts
             DWORD visited[MAX_PIDS];
             int visitedCount = 0;
             DWORD queue[MAX_PIDS];
             int queueCount = 0;
 
-            // Seed with our target PIDs
+            //
             for (int i = 0; i < targetPidCount; i++) {
                 if (visitedCount < MAX_PIDS) {
                     visited[visitedCount++] = targetPids[i];
@@ -370,11 +370,16 @@ int main(int argc, char* argv[]) {
             while (head < queueCount) {
                 DWORD cur = queue[head++];
 
+                
                 // Check every process to see if its parent is 'cur'
                 for (int j = 0; j < treeCount; j++) {
                     if (treeParents[j] == cur) {
                         // Make sure we haven't already seen this PID
                         BOOL alreadySeen = FALSE;
+                        // We do a Breadth First Search (BFS) — start with our target PIDs,
+                        // then find their children, then their children's children, etc.
+                        
+                        // Conceptually, we are searching for all adjacent processes, then delving deeper, finding more adjacent processes, until we hit the end and have seen everything
                         for (int v = 0; v < visitedCount; v++) {
                             if (visited[v] == treeParents[j] || visited[v] == treePids[j]) {
                                 if (visited[v] == treePids[j]) { alreadySeen = TRUE; break; }
@@ -388,9 +393,10 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Pull out just the children (not the original targets, we already have those)
+            // Pull out just the children processes (not the original parent, we already have that)
             for (int i = 0; i < visitedCount; i++) {
                 BOOL isRoot = FALSE;
+                // See if we have already seen the PID, confirm it is not parent PID
                 for (int t = 0; t < targetPidCount; t++) {
                     if (visited[i] == targetPids[t]) { isRoot = TRUE; break; }
                 }
@@ -398,14 +404,13 @@ int main(int argc, char* argv[]) {
                     childPids[childCount++] = visited[i];
                 }
             }
-        }
+        } 
     }
 
-    // /T Kill child processes first (bottom-up)
-    // Go in reverse so deepest children die before their parents
-    for (int i = childCount - 1; i >= 0; i--) {
-        // Find the name for this PID so we can display it
+    // Store in reverse order, so deepest child processes are termianted before their parent process
+    for (int i = childCount - 1; i >= 0; i--) { // If there are any counts of child processes, we will run this iteration to terminate the deepest one(s) first.
         const char* name = "<unknown>";
+        // Find the and set the name for this PID so we can display it later
         for (int p = 0; p < procCount; p++) {
             if (procPids[p] == childPids[i]) {
                 name = procNames[p];
@@ -413,7 +418,7 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Open and terminate
+        // Open and terminate start terminating child PIDs, in the reverse order specified above
         HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, childPids[i]);
         if (!hProc) {
             DWORD err = GetLastError();
@@ -429,7 +434,7 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        if (!TerminateProcess(hProc, 1)) {
+        if (!TerminateProcess(hProc, 1)) { // If we are not able to terminate a process, notify the user of the error
             fprintf(stderr, "ERROR: Failed to terminate PID %lu (error %lu).\n",
                 (unsigned long)childPids[i], (unsigned long)GetLastError());
             CloseHandle(hProc);
@@ -440,13 +445,14 @@ int main(int argc, char* argv[]) {
         CloseHandle(hProc);
         printf("SUCCESS: The process \"%s\" with PID %lu has been terminated.\n",
             name, (unsigned long)childPids[i]);
-    }
+    } // END identifying child PIDs
 
 
-    // Kill the target processes
-    for (int i = 0; i < targetPidCount; i++) {
-        // Find the name for display
+    // The big loop that will actually kill the target processes, iterating through our count of targetPIDs for how many to terminate (non child processes)
+    for (int i = 0; i < targetPidCount; i++) { // Iterate until we have gone through the count of all target PIDs
+        // Declare a name variable for processes as we iterate through our list
         const char* name = "<unknown>";
+        // Find the name for display
         for (int p = 0; p < procCount; p++) {
             if (procPids[p] == targetPids[i]) {
                 name = procNames[p];
@@ -454,33 +460,33 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // If /F was NOT specified, try graceful close first
+        // If /F was NOT specified, graceful close
         // Send WM_CLOSE to all the process's windows (like clicking the X button)
         if (!useForce) {
             EnumCtx ctx;
             ctx.pid = targetPids[i];
             ctx.posted = FALSE;
 
-            // EnumWindows calls our callback for every window on the desktop
-            EnumWindows(EnumWindowsProc, (LPARAM)&ctx);
+            // EnumWindows calls our callback for every window on the desktop, as a process might have multiple windows
+            EnumWindows(EnumWindowsProc, (LPARAM)&ctx); // Send the current PID we are at over to our callback function, 
 
-            if (ctx.posted) {
+            if (ctx.posted) { //if the callback function ctx.postedreturns TRUE, then the process was ended (non-forcefully) 
                 // We found windows and sent WM_CLOSE, now wait for it to exit
-                HANDLE hWait = OpenProcess(SYNCHRONIZE, FALSE, targetPids[i]);
+                HANDLE hWait = OpenProcess(SYNCHRONIZE, FALSE, targetPids[i]); // Open the process to see if the process will close
                 if (hWait) {
-                    // WAIT_OBJECT_0 means the process actually exited
                     // give it 3 seconds to close on its own
                     DWORD wait = WaitForSingleObject(hWait, 3000);
                     CloseHandle(hWait);
+                    // WAIT_OBJECT_0 means the process actually exited
                     if (wait == WAIT_OBJECT_0) {
                         printf("SUCCESS: Sent termination signal to the process \"%s\" with PID %lu.\n",
                             name, (unsigned long)targetPids[i]);
-                        continue; // Done with this one
+                        continue; // Done with this process, continue back up at our for loop to continue terminating processes
                     }
                 }
             }
 
-            // If we get here, graceful close didn't work
+            // If we get here, graceful close didn't work, let the user know of an error
             fprintf(stderr, "ERROR: The process \"%s\" with PID \"%lu\" could not be terminated.\nReason: This process can only be terminated forcefully (with /F option).\n",
                 name,
                 (unsigned long)targetPids[i]);
@@ -488,7 +494,7 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        // Forced path (/F)
+        // Forced path (/F) -- if we want to FORCE close an application
         HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, targetPids[i]);
         if (!hProc) {
             DWORD err = GetLastError();
@@ -504,8 +510,7 @@ int main(int argc, char* argv[]) {
             continue;
         }
 
-        // TerminateProcess immediately kills it, same as ending it in Task Manager
-        // The '1' is the exit code
+        // If we get an error terminating a process, log to user
         if (!TerminateProcess(hProc, 1)) {
             fprintf(stderr, "ERROR: Failed to terminate PID %lu (error %lu).\n",
                 (unsigned long)targetPids[i], (unsigned long)GetLastError());
@@ -519,5 +524,5 @@ int main(int argc, char* argv[]) {
             name, (unsigned long)targetPids[i]);
     }
 
-    return failures > 0 ? 1 : 0;
+    return failures > 0 ? 1 : 0; // If we have more than 1 failure, return an error, otherwise return no error.
 }
