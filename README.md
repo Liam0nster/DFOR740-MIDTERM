@@ -99,3 +99,14 @@ Visual Studio was used to compile the binaries through separate projects.
  - Shortcut: <Ctrl + b> will build the binary (Windows 11).
  <img width="762" height="154" alt="image" src="https://github.com/user-attachments/assets/28e05e11-cc5a-491e-8159-7c4b81702260" /></br>
  - You will see the output of where the binary was saved in the console at the bottom of Visual Studio.
+
+## AI Declaration
+- AI was leveraged in this assignment to aid in the creation of these binaries.
+- More information on AI usage in the .cpp files for each binary.
+## Other Resources 
+- Google Search
+- Win32 API documentation
+- YouTube
+- Geeksforgeeks
+- Stackoverflow
+(Specified in the .cpp files)
