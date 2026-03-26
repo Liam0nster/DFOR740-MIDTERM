@@ -1,0 +1,23 @@
+<Sysmon schemaversion="4.9">
+  <HashAlgorithms>MD5,SHA256</HashAlgorithms>
+  <EventFiltering>
+    
+    <ProcessCreate onmatch="include">
+      <Image condition="end with">\liam-tasklist.exe</Image>
+	  <Image condition="end with">\liam-taskkill.exe</Image>
+    </ProcessCreate>
+
+    <ProcessAccess onmatch="include">
+      <SourceImage condition="end with">\liam-tasklist.exe</SourceImage>
+    </ProcessAccess>
+
+    <FileCreate onmatch="include">
+	  <Image condition="end with">\liam-taskkill.exe</Image>
+    </FileCreate>
+
+    <ProcessTerminate onmatch="include">
+      <Image condition="end with">.exe</Image>
+    </ProcessTerminate>
+
+  </EventFiltering>
+</Sysmon>
