@@ -46,12 +46,13 @@ Visual Studio was used to compile the binaries through separate projects.
 - Create a new blank project,
 - Copy the associated .cpp file into the Source Files in the Solution Explorer,
 - Provide a name for the file,
-- Add, then copy the code into the file
-<img width="613" height="517" alt="image" src="https://github.com/user-attachments/assets/efedc611-fd07-440e-87a7-333cfc0f9d33" />
-<img width="350" height="287" alt="image" src="https://github.com/user-attachments/assets/be317907-feb2-45bd-928e-83459d0660e4" />
+- Then copy the code into the .cpp file
+</br><img width="613" height="517" alt="image" src="https://github.com/user-attachments/assets/efedc611-fd07-440e-87a7-333cfc0f9d33" /></br>
 <img width="450" height="151" alt="image" src="https://github.com/user-attachments/assets/a4140890-4816-4d6a-aca4-badf833303aa" />
+
 ### Compiling
- - Select "Release"
+<img width="871" height="134" alt="image" src="https://github.com/user-attachments/assets/f92d8592-79d4-4312-8387-6e16f51eab8b" /></br>
+ - At the top of Visual Studio, select "Release"
  - Shortcut: <Ctrl + b> will build the binary (Windows 11).
- - <img width="762" height="154" alt="image" src="https://github.com/user-attachments/assets/28e05e11-cc5a-491e-8159-7c4b81702260" />
- - You will see output of where the binary was saved in the console at the bottom of Visual Studio.
+ <img width="762" height="154" alt="image" src="https://github.com/user-attachments/assets/28e05e11-cc5a-491e-8159-7c4b81702260" /></br>
+ - You will see the output of where the binary was saved in the console at the bottom of Visual Studio.
