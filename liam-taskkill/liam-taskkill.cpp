@@ -53,8 +53,9 @@ typedef struct {
     BOOL posted;
 } EnumCtx;
 
-// EnumWindowsProc — Callback for to enumerate through windows, used during graceful termination.
-// Windows calls this once for every window on the desktop and we check if it belongs to the process we're trying to close.
+// EnumWindowsProc
+//      Callback for to enumerate through windows, used during graceful termination.
+//      Windows calls this once for every window on the desktop and we check if it belongs to the process we're trying to close.
 BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
     EnumCtx* ctx = (EnumCtx*)lParam;
 
@@ -72,8 +73,16 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam) {
 }
 
 
-
+// Here we start the main function
+// =========================
 int main(int argc, char* argv[]) {
+
+    // Processing command line args through if statements (and a for loop for case sensitivity)
+    //      make flags case-insensitive,
+    //      set flags as TRUE if applicable,
+    //      and verifying that flags are valid and have enough arguments
+    //      
+    // =========================
     // If less than 2 arguments, show help and exit
     if (argc < 2) {
         printf("\nliam-taskkill [/F] [/T] [/PID pid | /IM imagename]\n\n");
@@ -191,10 +200,11 @@ int main(int argc, char* argv[]) {
 
 
 
-    // Take a snapshot of all running processes
-    // We need this to resolve /IM names to PIDs and to display process names in output
-
-    // Arrays to hold process info from the process list snapshot down a few lines
+    // Take a snapshot of all running processes with CreateToolhelp32Snapshot
+    //      Create arrays to hold process info from the process list snapshot later
+    //      We need this to resolve /IM names to PIDs and to display process names in output
+    //      Walk the snapshot using Process32First/Process32Next and save each to the procNames/procPids lists
+    // =========================
     // 'static' for performance and to avoid crashing
     static DWORD procPids[MAX_PROCS];
     static char procNames[MAX_PROCS][MAX_NAME];
@@ -211,7 +221,7 @@ int main(int argc, char* argv[]) {
     PROCESSENTRY32 entry;
     entry.dwSize = sizeof(PROCESSENTRY32);
 
-    // Walk through the snapshot, grabbing each process's PID and name, storing in procNames
+    // Walk through the snapshot, grabbing each process's PID and name, storing in procNames for later access
     if (Process32First(snapshot, &entry)) {
         do {
             if (procCount < MAX_PROCS) {
@@ -223,7 +233,9 @@ int main(int argc, char* argv[]) {
     }
     CloseHandle(snapshot);
 
-
+    // This for loop will iterate through image names to make sure wildcard matching works
+    //      
+    // =========================
     // Resolve /IM imagename patterns to actual PIDs
     // For each pattern, we scan all processes and check if the name matches
     for (int im = 0; im < imageCount; im++) {
@@ -246,6 +258,8 @@ int main(int argc, char* argv[]) {
             BOOL isMatch = TRUE;
 
             // Wildcard matching, adapted from a string matching algorithm from GeeksforGeeks, made usable with Claude
+            // 
+            // =========================
             while (*text) {
                 if (*pattern == '?' || *pattern == *text) {
                     // Characters match, or ? matches anything — move forward
@@ -289,6 +303,8 @@ int main(int argc, char* argv[]) {
     int failures = 0; // Variable to track failed attempts, to return at completion of program which will result in either an exit of code 0 or 1
 
     // Verify that PIDs that we are about to kill actually exist in the snapshot taken earlier
+    //      For loop to iterate through to check that the target PID(s) we requested to terminate are in our list of pids from earlier
+    // =========================
     {
         DWORD validPids[MAX_PIDS];
         int validCount = 0;
@@ -329,6 +345,9 @@ int main(int argc, char* argv[]) {
     int childCount = 0;
     
     // If /T was specified, find all child processes
+    //      Use CreateToolhelp32Snapshot to snapshot, iterate through all the processes, 
+    //      
+    // =========================
     if (useTree) { 
         HANDLE treeSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (treeSnap != INVALID_HANDLE_VALUE) { // So long as there is no problem getting the snapshot, we will continue
@@ -357,7 +376,7 @@ int main(int argc, char* argv[]) {
             DWORD queue[MAX_PIDS];
             int queueCount = 0;
 
-            //
+            // Count up and verify we have seen each child pid
             for (int i = 0; i < targetPidCount; i++) {
                 if (visitedCount < MAX_PIDS) {
                     visited[visitedCount++] = targetPids[i];
@@ -370,7 +389,10 @@ int main(int argc, char* argv[]) {
             while (head < queueCount) {
                 DWORD cur = queue[head++];
 
-                
+
+                // Now we will iterate through to check if a process is the child of a parent process
+                // 
+                // =========================
                 // Check every process to see if its parent is 'cur'
                 for (int j = 0; j < treeCount; j++) {
                     if (treeParents[j] == cur) {
@@ -393,7 +415,8 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            // Pull out just the children processes (not the original parent, we already have that)
+            // Pull out just the children processes (not the original parent, we already have that), store into childPids
+            // =========================
             for (int i = 0; i < visitedCount; i++) {
                 BOOL isRoot = FALSE;
                 // See if we have already seen the PID, confirm it is not parent PID
@@ -407,7 +430,9 @@ int main(int argc, char* argv[]) {
         } 
     }
 
-    // Store in reverse order, so deepest child processes are termianted before their parent process
+    // Iterate through in reverse order, so deepest child processes are terminated before their parent process
+    //      Terminate processes in the next code block 
+    // =========================
     for (int i = childCount - 1; i >= 0; i--) { // If there are any counts of child processes, we will run this iteration to terminate the deepest one(s) first.
         const char* name = "<unknown>";
         // Find the and set the name for this PID so we can display it later
@@ -418,7 +443,9 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Open and terminate start terminating child PIDs, in the reverse order specified above
+        // Use OpenProcess and start terminating child PIDs, in the reverse order specified above
+        //      Error if errors happen as needed
+        // =========================
         HANDLE hProc = OpenProcess(PROCESS_TERMINATE, FALSE, childPids[i]);
         if (!hProc) {
             DWORD err = GetLastError();
@@ -448,7 +475,11 @@ int main(int argc, char* argv[]) {
     } // END identifying child PIDs
 
 
-    // The big loop that will actually kill the target processes, iterating through our count of targetPIDs for how many to terminate (non child processes)
+    // This next loop will kill the target processes, 
+    //      iterating through our count of targetPIDs for how many to terminate
+    //      this does not handle child processes, those have already been terminated
+    //      
+    // =========================
     for (int i = 0; i < targetPidCount; i++) { // Iterate until we have gone through the count of all target PIDs
         // Declare a name variable for processes as we iterate through our list
         const char* name = "<unknown>";
@@ -461,7 +492,9 @@ int main(int argc, char* argv[]) {
         }
 
         // If /F was NOT specified, graceful close
-        // Send WM_CLOSE to all the process's windows (like clicking the X button)
+        //      Send WM_CLOSE to all the process's windows (like clicking the X button)
+        //      Callback to our EnumWindows function defined toward the top, to send shutdown signals and receieve confirmation of closing
+        // =========================
         if (!useForce) {
             EnumCtx ctx;
             ctx.pid = targetPids[i];
