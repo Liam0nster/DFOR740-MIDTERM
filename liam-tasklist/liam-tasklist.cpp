@@ -39,7 +39,11 @@ Other resources used:
 #include <iomanip>
 
 
-
+// Start of our program
+//      Reading and checking for args
+//      Validating passed flags
+//      Error if invalid flag
+// =====================
 int main(int argc, char* argv[]) {
     // Declare flags
     bool showVerbose = false;
@@ -97,8 +101,19 @@ int main(int argc, char* argv[]) {
         return 1; // Exit with an error code
     }
 
+
+    // Verbose output
+    //      Uses CreateToolhelp32Snapshot to take a snapshot of running processes,
+    //      Prints header for output,
+    //      Walk through the snapshot using Process32First/Process32Next, iterate until no more processes
+    //      Collect all of the information for each process using OpenProcess, GetProcessMemoryInfo, OpenProcessToken, GetTokenInformation, GetProcessTimes, GetWindowThreadProcessId, and LookupAccountSidA
+    //      So we can collect the image name, PID, session name + number, memory usage, process status, name of user (by querying with the Security Identifier), cpu time, and then the title of the window for a verbose output
+    //      Iterate with a do while loop to get info on each process, then
+    //      Trims and prints output for the user
+    // =====================
+    // 
     // If the user intends to get a verbose listing by passing /V
-    // Heavy lifting here orchestrated by Claude, this was the most challenging part of tasklist for me
+    // Heavy lifting here helped by Claude, this was the most challenging part of tasklist for me
     else if (showVerbose) {
         HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if (snapshot == INVALID_HANDLE_VALUE) {
@@ -130,6 +145,8 @@ int main(int argc, char* argv[]) {
             << std::string(29, '=') << " "
             << std::string(12, '=') << " "
             << std::string(30, '=') << std::endl;
+
+
 
         // Process32First returns a boolean value, so we want to check and verify that there is atleast one process in our snapshot
         // The following do while loop iterates through all processes until the buffer has no process references
@@ -298,7 +315,12 @@ int main(int argc, char* argv[]) {
 
     } // END verbose output handling
 
-
+    // Now we progress to collecting service information
+    //      We use OpenSCManagerA, EnumServicesStatusExA, CreateToolhelp32Snapshot, Process32First/Process32Next, ProcessIdToSessionId, and OpenProcess to:
+    //      Interface with the Service Control Manager (services.exe)
+    //      Create a pointer to reference the list of all services
+    //      Take a snapshot to compare the services list to pids to gather service names
+    // =====================
     // SERVICES: If the user intends to get a list of services by passing /SVC
     else if (showServices) {
         
@@ -406,6 +428,14 @@ int main(int argc, char* argv[]) {
     } // END of /SVC output
 
 
+
+   // Default output
+   //      Uses CreateToolhelp32Snapshot to take a snapshot of running processes,
+   //      Prints header for output,
+   //      Walk through the snapshot using Process32First/Process32Next, iterate until no more processes
+   //      Collect all of the information for each process using OpenProcess, GetProcessMemoryInfo, OpenProcessToken, GetTokenInformation, GetProcessTimes
+   //      We can get the image name, pid, seesion name and number, as well as the memory being used by the process in KB
+   // =====================
     // If no errors happen, and no flags are passed, we get to the default 'tasklist' execution
     else {
         // Take a snapshot
@@ -430,7 +460,7 @@ int main(int argc, char* argv[]) {
         if (Process32First(snapshot, &entry)) {
             do {
                 DWORD sessionId = 0;
-                ProcessIdToSessionId(entry.th32ProcessID, // Query ProcessIdToSessionId feeding the PID of the process, storing the result in sessionId
+                ProcessIdToSessionId(entry.th32ProcessID, // Use ProcessIdToSessionId feeding the PID of the process, storing the result in sessionId
                     &sessionId);
 
                 // 0 is for a system service and anything else (1) is a user service
